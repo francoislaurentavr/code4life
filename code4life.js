@@ -44,7 +44,7 @@ var read = ()=>readline().split(' '),
             cost:abcde(a,b,c,d,e)
         };
     },
-    modules={diag:'DIAGNOSIS',mol:'MOLECULES',lab:'LABORATORY'},
+    modules={diag:'DIAGNOSIS',mol:'MOLECULES',lab:'LABORATORY',samp:'SAMPLES'},
     readGame = ()=>{ 
         return {            
           me:robot(),
@@ -52,7 +52,7 @@ var read = ()=>readline().split(' '),
           availlables:rabcde(),
           samples:readArr(sample),
           filtSample:function(prop){return this.samples.filter(s=>s.prop===prop)},
-          carSample:function(){var s=this.filtSample(0);return s.length>0?s[0]:false},
+          carSamples:function(){return this.filtSample(0);},
           availSamples:function(){return this.filtSample(-1)}      
         };
     },
@@ -63,6 +63,14 @@ var read = ()=>readline().split(' '),
 //  Init
 var projects = readArr(rabcde);
 
+var steps=["takeSample","diag","takeMol","lab"],
+    step = steps[0],
+    nextStep=()=>{step = steps[(steps.indexOf(step)+1)%steps.length]};
+
+// var steps = [
+//     (me,samples)=>'GOTO DIAGNOSIS',
+//     ()=>''
+// ]
 
 // game loop
 while (true) {
@@ -107,52 +115,128 @@ while (true) {
     
     var game = readGame();
     //printErr(JSON.stringify(game));
-    var    carSample = game.carSample(),
+    var carSample = game.carSamples(),
         target = game.me.target;
-        
-    if(!carSample){
-        if(target != modules.diag){
-            goto(modules.diag);
-        }else{
-            var samps = game.availSamples().sort((a,b)=>b.health-a.health);
-            if(samps.length >0){
-                
-                connect(samps[0].id);
-            }else{
-                //what to do here ???
-                
-                printErr("no sample to take :(")
-                goto(modules.diag);
-            }
-        }
-    }else{
-        //carSample ok
-        var need = difabcde(carSample.cost,game.me.storage),
-            totneed = need.tot();
+      
+    debug({step:step})
+    switch(step){
+        case steps[0]:        
             
-            debug(need);
-            debug(totneed);
-        if(totneed >0){
-            if(target != modules.mol){
-                goto(modules.mol);   
+            if(target != modules.samp){
+                goto(modules.samp);
             }else{
-                var needAndAvail = minabcde(need,game.availlables),
-                    toTake = needAndAvail.firstPos();
-                debug(needAndAvail);
-                debug(toTake);
-                if(toTake !== false){
-                    connect(toTake);                    
-                }else{                    
-                    printErr("nothing to take :(");
+                // var samps = game.availSamples().sort((a,b)=>b.rank-a.rank);
+                // if(samps.length >0 && carSample.length < 1){             
+                //     connect(samps[carSample.length>1 ? samps.length-1:0].id);
+                // }else{
+                //     
+                // }
+                if(carSample.length == 0){
+                    connect(2);
+                }else{
+                    nextStep();
                     goto(modules.diag);
                 }
             }            
-        }else{
+            break;
+        case steps[1]:
+            if(target  != modules.diag){
+                goto(modules.diag);
+            }else{
+                var toDiag = carSample.filter(a=>a.cost.tot()==0);
+                if(toDiag.length >0){
+                    connect(toDiag[0].id);
+                }else{
+                    nextStep();
+                    goto(modules.mol);
+                }
+            }
+            break;
+        case steps[2]:
+            // var ok=[];
+            // for(var i=0;i< carSample.length;i++){
+            if(target != modules.mol){
+                goto(modules.mol);   
+            }else{
+                var need = difabcde(carSample[0].cost,game.me.storage),
+                    totneed = need.tot();
+                    
+                if(totneed >0){                    
+                    var needAndAvail = minabcde(need,game.availlables),
+                        toTake = needAndAvail.firstPos();
+                    debug(needAndAvail);
+                    debug(toTake);
+                    if(toTake !== false){
+                        connect(toTake);                    
+                    }else{                    
+                        printErr("nothing to take :(");
+                        goto(modules.diag);
+                    }                                
+                }else{
+                    nextStep();
+                    goto(modules.lab);
+                } 
+            }
+            break;
+        case steps[3]:
             if(target != modules.lab){
                 goto(modules.lab);
             }else{
-                connect(carSample.id);
+                if(carSample.length>0){
+                    connect(carSample[0].id);
+                }
+                else
+                {
+                    nextStep();
+                    goto(modules.samp);
+                }                    
             }
-        }        
-    }    
+            break;
+    }
+        
+    // if(!carSample){
+    //     if(target != modules.diag){
+    //         goto(modules.diag);
+    //     }else{
+    //         var samps = game.availSamples().sort((a,b)=>b.health-a.health);
+    //         if(samps.length >0){
+                
+    //             connect(samps[0].id);
+    //         }else{
+    //             //what to do here ???
+                
+    //             printErr("no sample to take :(")
+    //             goto(modules.diag);
+    //         }
+    //     }
+    // }else{
+    //     //carSample ok
+    //     for(var i=0;i< carSample.length;i++){            
+        
+    //     var need = difabcde(carSample[0].cost,game.me.storage),
+    //         totneed = need.tot();
+            
+    //     if(totneed >0){
+    //         if(target != modules.mol){
+    //             goto(modules.mol);   
+    //         }else{
+    //             var needAndAvail = minabcde(need,game.availlables),
+    //                 toTake = needAndAvail.firstPos();
+    //             debug(needAndAvail);
+    //             debug(toTake);
+    //             if(toTake !== false){
+    //                 connect(toTake);                    
+    //             }else{                    
+    //                 printErr("nothing to take :(");
+    //                 goto(modules.diag);
+    //             }
+    //         }            
+    //     }else{
+    //         if(target != modules.lab){
+    //             goto(modules.lab);
+    //         }else{
+    //             connect(carSample.id);
+    //         }
+    //     }        
+    // }    
 }
