@@ -50,7 +50,7 @@ var read = ()=>readline().split(' '),
             samples:readArr(sample),
             filtSample:function(prop){return this.samples.filter(s=>s.prop===prop)},
             carSamples:function(){return this.filtSample(0);},
-            availSamples:function(){return this.filtSample(-1)}
+            availSamples:function(){var that = this;return this.filtSample(-1).filter(s=>findTake(s,that.me.storage,that.me.expertise,that.availlables))}
         };
     },
     goto=(mod)=>print('GOTO',mod),
@@ -110,8 +110,13 @@ while (true) {
                 if(toDiag.length >0){
                     connect(toDiag[0].id);
                 }else{
-                    nextStep();
-                    goto(modules.mol);
+                    var ok1 = false;
+                    if(carSample.length < 3 && (ava = game.availSamples()).length > 0){
+                         connect(ava[0].id);
+                    }else{
+                        nextStep();
+                        goto(modules.mol);
+                    }
                 }
             }
             break;
@@ -136,8 +141,14 @@ while (true) {
                         nextStep();
                         goto(modules.lab);
                     }else if(carSample.length < 3) {
-                        step = steps[0];
-                        goto(modules.samp);
+                        var av = game.availSamples();
+                        if(av.length >0){
+                            step = steps[1];
+                            goto(modules.diag);
+                        }else {
+                            step = steps[0];
+                            goto(modules.samp);
+                        }
                     }else {
                         if(game.other.target == modules.lab){
                             print('WAIT');
