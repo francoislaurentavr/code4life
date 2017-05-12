@@ -194,49 +194,4 @@ while (true) {
             break;
     }
         
-    // if(!carSample){
-    //     if(target != modules.diag){
-    //         goto(modules.diag);
-    //     }else{
-    //         var samps = game.availSamples().sort((a,b)=>b.health-a.health);
-    //         if(samps.length >0){
-                
-    //             connect(samps[0].id);
-    //         }else{
-    //             //what to do here ???
-                
-    //             printErr("no sample to take :(")
-    //             goto(modules.diag);
-    //         }
-    //     }
-    // }else{
-    //     //carSample ok
-    //     for(var i=0;i< carSample.length;i++){            
-        
-    //     var need = difabcde(carSample[0].cost,game.me.storage),
-    //         totneed = need.tot();
-            
-    //     if(totneed >0){
-    //         if(target != modules.mol){
-    //             goto(modules.mol);   
-    //         }else{
-    //             var needAndAvail = minabcde(need,game.availlables),
-    //                 toTake = needAndAvail.firstPos();
-    //             debug(needAndAvail);
-    //             debug(toTake);
-    //             if(toTake !== false){
-    //                 connect(toTake);                    
-    //             }else{                    
-    //                 printErr("nothing to take :(");
-    //                 goto(modules.diag);
-    //             }
-    //         }            
-    //     }else{
-    //         if(target != modules.lab){
-    //             goto(modules.lab);
-    //         }else{
-    //             connect(carSample.id);
-    //         }
-    //     }        
-    // }    
 }
