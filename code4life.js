@@ -11,9 +11,18 @@ var read = ()=>readline().split(' '),
             if(this.b>0) r='b';
             if(this.a>0) r='a';
             return r;
+        },
+        subabcde:function(b){
+            this.a-=b.a;
+            this.b-=b.b;
+            this.c-=b.c;
+            this.d-=b.d;
+            this.e-=b.e
         }
     }),
+    cabcde=a=>abcde(a.a,a.b,a.c,a.d,a.e),
     difabcde=(a,b)=>abcde(a.a-b.a,a.b-b.b,a.c-b.c,a.d-b.d,a.e-b.e),
+
     addabcde=(a,b)=>abcde(a.a+b.a,a.b+b.b,a.c+b.c,a.d+b.d,a.e+b.e),
     minabcde=(a,b)=>abcde(Math.min(a.a,b.a),Math.min(a.b,b.b),Math.min(a.c,b.c),Math.min(a.d,b.d),Math.min(a.e,b.e)),
     readArr=(func)=>[...Array(+readline())].map(a=>func()),
@@ -50,41 +59,47 @@ var read = ()=>readline().split(' '),
             samples:readArr(sample),
             filtSample:function(prop){return this.samples.filter(s=>s.prop===prop)},
             carSamples:function(){return this.filtSample(0);},
-            availSamples:function(){var that = this;return this.filtSample(-1).filter(s=>findTake(s,that.me.storage,that.me.expertise,that.availlables))}
+            availSamples:function(rank){var that = this;return this.filtSample(-1).filter(s=>s.rank >rank && findTake(s,that.me.storage,that.me.expertise,that.availlables))}
         };
     },
     goto=(mod)=>print('GOTO',mod),
     connect=(o)=>print('CONNECT',(''+o).toUpperCase()),
     debug=(o)=>printErr(JSON.stringify(o)),
-    findTake=(samp,storage,expertise,avail)=>{
+    findTake=(samp,storage,expertise,avail,tot)=>{
+        if(typeof tot === "undefined")tot = storage.tot();
         var need = difabcde(samp.cost,addabcde(storage,expertise)),
             totneed = need.tot();
         if(totneed >0){
             var needAndAvail = minabcde(need,avail),
                 toTake = needAndAvail.firstPos(),
                 needAvailTot = needAndAvail.tot();
-            if(needAvailTot < totneed || needAvailTot + storage.tot() > 10){
+            if(needAvailTot < totneed || needAvailTot + tot > 10){
                 //tout n'est pas dispo pour ce sample, check others
                 return false;
             }
             return toTake;
         }else{
+            storage.subabcde(difabcde(samp.cost,expertise));
             return true;
         }
     };
 
 //  Init
 var projects = readArr(rabcde);
-
+debug(projects);
 var steps=["takeSample","diag","takeMol","lab"],
     step = steps[0],
     nextStep=()=>{step = steps[(steps.indexOf(step)+1)%steps.length]};
 
 while (true) {
     var game = readGame();
-    var carSample = game.carSamples().sort((a,b)=>a.rank-b.rank),
+    var carSample = game.carSamples().sort((a,b)=>b.rank-a.rank),
         target = game.me.target;
 
+    for(var k=0; k< game.samples.length;k++){
+        debug(game.samples[k]);
+    }
+    var exp = game.me.expertise.tot();
     debug({step:step});
     debug({me:game.me});
     debug({carSample:carSample});
@@ -95,7 +110,23 @@ while (true) {
                 goto(modules.samp);
             }else{
                 if(carSample.length < 3){
-                    connect(2);//(carSample.length >0 && carSample[0].rank==2) ? 1:2);
+                    // connect( ? 3:1);
+                    var ranks =  exp < 3 ? [1,2,0] : [0,1,2];
+                    carSample.forEach(s=>ranks[s.rank -1]--);
+
+                    connect(ranks.indexOf(ranks.filter(r=>r>0)[0])+1);
+
+
+
+                    // connect(ranks[carSample.length >0 && carSample[0].rank == ranks[1] ? 0:1]);
+                    // var ranks = [0,0,0]
+                    //     ;
+                    // carSample.forEach(s=>ranks[s.rank-1]++);
+                    // if(game.me.expertise.tot() >4) {
+                    //     connect((carSample.length > 0 && carSample[0].rank == 3) ? 2 : 3);
+                    // }else{
+                    //     connect(2);
+                    // }
                 }else{
                     nextStep();
                     goto(modules.diag);
@@ -110,12 +141,20 @@ while (true) {
                 if(toDiag.length >0){
                     connect(toDiag[0].id);
                 }else{
-                    var ok1 = false;
-                    if(carSample.length < 3 && (ava = game.availSamples()).length > 0){
+                    if(carSample.length < 3 && (ava = game.availSamples(1).sort((a,b)=>b.health-a.health)).length > 0){
                          connect(ava[0].id);
                     }else{
-                        nextStep();
-                        goto(modules.mol);
+                        if(carSample.filter(s=>findTake(s,game.me.storage,game.me.expertise,game.availlables)).length ==0){
+                            if(carSample.length >0) {
+                                connect(carSample[0].id);
+                            }else{
+                                step = steps[0];
+                                goto(modules.samp);
+                            }
+                        }else {
+                            nextStep();
+                            goto(modules.mol);
+                        }
                     }
                 }
             }
@@ -124,12 +163,12 @@ while (true) {
             if(target != modules.mol || game.me.eta !=0){
                 goto(modules.mol);
             }else{
-                var ok = false, oneFinish=false;
+                var ok = false, oneFinish=false, tempStorage = cabcde(game.me.storage),tot= game.me.storage.tot();
                 for(var i = 0; i < carSample.length;i++){
-                    var toTake = findTake(carSample[i],game.me.storage,game.me.expertise, game.availlables);
+                    var toTake = findTake(carSample[i],tempStorage,game.me.expertise, game.availlables,tot);
                     if(toTake === true){
                         oneFinish = true;
-                    }else if(toTake !== false){
+                    }else if(toTake !== false  ){
                         connect(toTake);
                         ok = true;
                         break;
@@ -141,7 +180,7 @@ while (true) {
                         nextStep();
                         goto(modules.lab);
                     }else if(carSample.length < 3) {
-                        var av = game.availSamples();
+                        var av = game.availSamples(1);
                         if(av.length >0){
                             step = steps[1];
                             goto(modules.diag);
@@ -174,8 +213,14 @@ while (true) {
                         }
                     }
                     if(!ok2){
-                        step = 'takeMol';
-                        goto(modules.mol);
+                        var tempsamp;
+                        if((tempsamp = carSample.filter(s=>findTake(s,game.me.storage,game.me.expertise,game.availlables))).length >0 ) {//&& tempsamp.length == 2 || tempsamp.filter(s=>s.rank == ranks[1]).length >
+                            step = 'takeMol';
+                            goto(modules.mol);
+                        }else{
+                            nextStep();
+                            goto(modules.samp);
+                        }
                     }
                 }
                 else
